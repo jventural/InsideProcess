@@ -15,11 +15,13 @@ Description: Gathers and quantifies validity evidence based on response
     questionnaire. Probes follow the four stages of the survey response model
     of Tourangeau, Rips and Rasinski (2000) <doi:10.1017/CBO9780511819322>:
     comprehension (clarity rating, paraphrase, confusing words), retrieval,
-    judgment and response. Paraphrases coded as adequate, partial, different
-    meaning or echo are turned into item-level metrics: comprehension index,
-    problem index with a Wilson (1927) <doi:10.1080/01621459.1927.10502953>
-    interval, severity, discordance between declared and shown understanding,
-    and a keep, revise or reformulate decision. Intercoder agreement is given
+    judgment and response. Open answers of each stage are coded with a
+    common scheme (adequate, partial, inadequate, not assessable) and turned
+    into item-level metrics: comprehension index, problem index with a
+    Wilson (1927) <doi:10.1080/01621459.1927.10502953> interval, problems in
+    each stage, severity, discordance between declared and shown
+    understanding, use of the answer options, and a keep, revise or
+    reformulate decision. Intercoder agreement is given for each stage
     with Cohen's kappa and the AC1 coefficient of Gwet (2008)
     <doi:10.1348/000711006X126600>, together with sensitivity analyses without
     doubtful participants, response quality per participant, tables and

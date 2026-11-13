@@ -2,7 +2,7 @@
 % Please edit documentation in R/coding.R
 \name{rp_coding_template}
 \alias{rp_coding_template}
-\title{Template to code the paraphrases}
+\title{Template to code the open answers}
 \usage{
 rp_coding_template(data, file = NULL, only_flagged = FALSE)
 }
@@ -13,23 +13,25 @@ rp_coding_template(data, file = NULL, only_flagged = FALSE)
 Excel shows accents correctly).}
 
 \item{only_flagged}{If \code{TRUE}, keeps only the answers in which the
-participant declared some difficulty. Default \code{FALSE}: every paraphrase.}
+participant declared some difficulty. Default \code{FALSE}: every answer.}
 }
 \value{
 The template as a data frame (invisibly when \code{file} is given).
 }
 \description{
 Builds a table with one row per answer, ready to be coded by one or more
-coders (in Excel or in R). Columns \code{code}, \code{note}, \code{stage} and
-\code{problem_type} are left empty for the coder. \code{code} takes \code{A}, \code{P}, \code{D} or
-\code{E} (see \code{\link[=rp_scheme]{rp_scheme()}}); \code{stage} takes a stage of the response process;
-\code{problem_type} is free text (for example vague term, double-barrelled,
-implicit assumption).
+coders (in Excel or in R). For each coded stage present in the data
+(comprehension when there are paraphrases, retrieval and judgment when
+those probes were asked) it adds an empty code column and a note column:
+\code{code} and \code{note} (comprehension), \code{code_retrieval} and \code{note_retrieval},
+\code{code_judgment} and \code{note_judgment}. Codes are \code{A}, \code{P}, \code{D} or \code{E}, with
+the meaning of each stage given by \code{\link[=rp_scheme]{rp_scheme()}}. \code{problem_type} is free
+text (for example vague term, double-barrelled, implicit assumption).
 }
 \examples{
 tpl <- rp_coding_template(rp_example)
-head(tpl)
+names(tpl)
 }
 \seealso{
-\code{\link[=rp_code]{rp_code()}}, \code{\link[=rp_agreement]{rp_agreement()}}
+\code{\link[=rp_code]{rp_code()}}, \code{\link[=rp_agreement]{rp_agreement()}}, \code{\link[=rp_scheme]{rp_scheme()}}
 }

@@ -29,38 +29,58 @@ rp_wilson <- function(x, n, conf = .95) {
 #'
 #' Computes, for each item, the metrics that turn the cognitive interview into
 #' a decision: keep, revise or reformulate. A *signal* is a participant who
-#' declared some difficulty (clarity "somewhat" or "not clear") or whose
-#' paraphrase was partial (`P`) or gave another meaning (`D`). Echoes (`E`) are
-#' not signals, because they do not allow comprehension to be judged.
+#' shows a problem in any of the stages analysed:
+#'
+#' - comprehension: declared difficulty (clarity "somewhat" or "not clear") or
+#'   a paraphrase partial (`P`) or with another meaning (`D`);
+#' - retrieval: a recall coded `P` (vague) or `D` (another domain);
+#' - judgment: a reason coded `P` (another criterion) or `D` (it contradicts
+#'   the answer);
+#' - response: some difficulty to choose an option ("a little" or "hard").
+#'
+#' Echoes and answers that cannot be assessed (`E`) are not signals. See
+#' [rp_scheme()] for the meaning of each code in each stage.
 #'
 #' | Metric | What it measures | How it is computed |
 #' |---|---|---|
 #' | `comprehension` (IC) | Share that understood the item as intended | `A` paraphrases / assessable paraphrases (echoes excluded) |
-#' | `problem` (IP) | Share with some signal | Participants with a signal / participants |
+#' | `problem` (IP) | Share with some signal | Participants with a signal in any stage / participants |
 #' | `problem_lower`, `problem_upper` | How much IP could vary in another sample | Wilson interval |
-#' | `severity` | How serious the problems were (0 to 2) | Mean of the larger of: `D` = 2, `P` = 1, "not clear" = 2, "somewhat" = 1 |
+#' | `severity` | How serious the problems were (0 to 2) | Mean of the largest weight across stages: `D` = 2, `P` = 1, "not clear" or "hard" = 2, "somewhat" or "a little" = 1 |
 #' | `discordance` | Said it was clear but did not understand | Clarity "yes" with paraphrase `P` or `D` |
 #' | `firm` | The problem is unlikely to be chance | Lower limit of IP above `firm` |
+#' | `problem_<stage>` | Share with a signal in that stage | Participants with a signal in the stage / participants |
+#' | `retrieval_index`, `judgment_index` | Share of adequate recalls and reasons | `A` / assessable codes of the stage |
+#' | `main_stage` | Where the item fails | Stage with the highest `problem_<stage>` |
 #'
 #' The decision uses proportions so that it does not depend on the number of
 #' participants: reformulate when IP reaches `cut_reformulate`, revise when it
 #' reaches `cut_revise`, keep otherwise. The cut-offs are tentative and should
-#' be declared in the method.
+#' be declared in the method. With only comprehension probes, the evidence
+#' covers the first stage of the response process and `main_stage` is always
+#' comprehension.
 #'
 #' @param data Answers read with [rp_read()] and, ideally, coded with
-#'   [rp_code()]. Without coding, only declared clarity is used.
+#'   [rp_code()]. Without coding, only declared clarity (and the `response`
+#'   probe, if asked) is used.
 #' @param cut_reformulate,cut_revise Cut-offs of the problem index.
 #' @param firm Threshold for the lower limit of the Wilson interval.
 #' @param conf Confidence level of the interval.
 #' @param exclude Participants to leave out (for example `c("P2", "P6")`).
-#' @param lang Language of the decision labels: `"es"` or `"en"`.
+#' @param stages Stages that count as signals: any of `"comprehension"`,
+#'   `"retrieval"`, `"judgment"` and `"response"`. By default, every stage
+#'   with data (and coding, for retrieval and judgment). Use
+#'   `stages = "comprehension"` to reproduce a comprehension-only analysis.
+#' @param lang Language of the decision and stage labels: `"es"` or `"en"`.
 #'
 #' @return A data frame of class `rp_metrics`, one row per item ordered from
 #'   the most to the least problematic, with `n`, `item_code`, `dimension`,
 #'   `item`, `participants`, `clarity` (participants who declared difficulty),
-#'   `A`, `P`, `D`, `E`, `assessable`, `signals`, `comprehension`, `problem`,
-#'   `problem_lower`, `problem_upper`, `severity`, `discordance`, `seconds`
-#'   (median, when timed), `firm` and `decision`.
+#'   `A`, `P`, `D`, `E` (paraphrase codes), `assessable`, `signals`,
+#'   `comprehension`, `problem`, `problem_lower`, `problem_upper`, `severity`,
+#'   `discordance`, `seconds` (median, when timed), `firm`, `decision`, one
+#'   `problem_<stage>` column per stage analysed, `retrieval_index` and
+#'   `judgment_index` (when those stages are analysed) and `main_stage`.
 #' @references Padilla, J.-L., & Benitez, I. (2014). Validity evidence based on
 #'   response processes. *Psicothema, 26*(1), 136-144.
 #'   \doi{10.7334/psicothema2013.259}
@@ -71,34 +91,56 @@ rp_wilson <- function(x, n, conf = .95) {
 #' m <- rp_metrics(ci)
 #' m[, c("item_code", "comprehension", "problem", "decision")]
 rp_metrics <- function(data, cut_reformulate = .50, cut_revise = .30, firm = .20,
-                       conf = .95, exclude = NULL, lang = NULL) {
+                       conf = .95, exclude = NULL, stages = NULL, lang = NULL) {
   lang <- rp_lang(lang)
-  rp_check_data(data, c("participant", "n", "clarity"))
+  rp_check_data(data, c("participant", "n"))
   if (cut_revise >= cut_reformulate) stop("`cut_revise` must be lower than `cut_reformulate`.", call. = FALSE)
   d <- as.data.frame(data)
   if (!is.null(exclude)) d <- d[!as.character(d$participant) %in% exclude, , drop = FALSE]
+  if (!"clarity" %in% names(d)) d$clarity <- NA
+  auto <- is.null(stages)
+  stages <- rp_pick_stages(d, stages)
+  if (!length(stages)) stop("Nothing to analyse: the answers have no clarity, coding or response probe.", call. = FALSE)
   coded <- rp_has_code(d)
-  if (!coded) message("No paraphrase coding found: metrics use declared clarity only. Add it with rp_code().")
-  d$.signal <- rp_signal(d)
-  d$.sev <- rp_severity_row(d)
+  if (!coded && "comprehension" %in% stages) {
+    message("No paraphrase coding found: comprehension uses declared clarity only. Add it with rp_code().")
+  }
+  for (s in c("retrieval", "judgment")) {
+    if (auto && rp_text_cols[[s]] %in% names(d) && !s %in% stages && any(!is.na(d[[rp_text_cols[[s]]]]))) {
+      message("The ", s, " answers are not coded: add `", rp_stage_cols[[s]], "` with rp_code() to analyse that stage.")
+    }
+  }
+  sm <- rp_stage_matrix(d, stages)
+  d$.signal <- rowSums(sm$signal) > 0
+  d$.sev <- apply(sm$severity, 1, max)
+  for (s in stages) {
+    d[[paste0(".sig_", s)]] <- sm$signal[, s]
+    d[[paste0(".ass_", s)]] <- sm$assessable[, s]
+  }
+  no_clarity <- all(is.na(d$clarity))
   cl <- rp_clarity_level(d$clarity)
   d$.unclear <- !is.na(cl) & cl > 0
   d$.disc <- if (coded) !is.na(cl) & cl == 0 & d$code %in% c("P", "D") else NA
   if (!"item_code" %in% names(d)) d$item_code <- paste0("I", d$n)
   if (!"dimension" %in% names(d)) d$dimension <- NA_character_
   if (!"item" %in% names(d)) d$item <- NA_character_
+  idx <- function(code) { k <- sum(code %in% c("A", "P", "D")); if (k > 0) sum(code %in% "A") / k else NA_real_ }
   sp <- split(d, d$n)
   rows <- lapply(sp, function(x) {
     code <- if (coded) x$code else rep(NA_character_, nrow(x))
-    np <- sum(!is.na(x$clarity))
-    data.frame(n = x$n[1], item_code = x$item_code[1], dimension = x$dimension[1], item = x$item[1],
-               participants = np, clarity = sum(x$.unclear),
-               A = sum(code == "A", na.rm = TRUE), P = sum(code == "P", na.rm = TRUE),
-               D = sum(code == "D", na.rm = TRUE), E = sum(code == "E", na.rm = TRUE),
-               assessable = sum(!is.na(code) & code != "E"), signals = sum(x$.signal),
-               severity = mean(x$.sev), discordance = if (coded) sum(x$.disc) else NA_integer_,
-               seconds = if ("seconds" %in% names(x)) stats::median(x$seconds, na.rm = TRUE) else NA_real_,
-               stringsAsFactors = FALSE)
+    np <- if (no_clarity) nrow(x) else sum(!is.na(x$clarity))
+    out <- data.frame(n = x$n[1], item_code = x$item_code[1], dimension = x$dimension[1], item = x$item[1],
+                      participants = np, clarity = sum(x$.unclear),
+                      A = sum(code == "A", na.rm = TRUE), P = sum(code == "P", na.rm = TRUE),
+                      D = sum(code == "D", na.rm = TRUE), E = sum(code == "E", na.rm = TRUE),
+                      assessable = sum(!is.na(code) & code != "E"), signals = sum(x$.signal),
+                      severity = mean(x$.sev), discordance = if (coded) sum(x$.disc) else NA_integer_,
+                      seconds = if ("seconds" %in% names(x)) stats::median(x$seconds, na.rm = TRUE) else NA_real_,
+                      stringsAsFactors = FALSE)
+    for (s in stages) out[[paste0("problem_", s)]] <- if (np > 0) sum(x[[paste0(".sig_", s)]]) / np else NA_real_
+    if ("retrieval" %in% stages) out$retrieval_index <- idx(x$code_retrieval)
+    if ("judgment" %in% stages) out$judgment_index <- idx(x$code_judgment)
+    out
   })
   m <- do.call(rbind, rows)
   m$comprehension <- ifelse(m$assessable > 0, m$A / m$assessable, NA_real_)
@@ -108,13 +150,19 @@ rp_metrics <- function(data, cut_reformulate = .50, cut_revise = .30, firm = .20
   m$problem_upper <- ci[, "upper"]
   m$firm <- m$problem_lower > firm
   m$decision <- rp_decide(m$problem, cut_reformulate, cut_revise, lang)
+  pcols <- paste0("problem_", stages)
+  lab <- rp_stage_labels(lang)
+  m$main_stage <- apply(as.matrix(m[, pcols, drop = FALSE]), 1, function(v) {
+    if (all(is.na(v)) || max(v, na.rm = TRUE) == 0) NA_character_ else unname(lab[stages[which.max(v)]])
+  })
+  extra <- c(pcols, intersect(c("retrieval_index", "judgment_index"), names(m)), "main_stage")
   m <- m[order(-m$problem, -m$severity, m$n), c("n", "item_code", "dimension", "item", "participants", "clarity",
                                                  "A", "P", "D", "E", "assessable", "signals", "comprehension",
                                                  "problem", "problem_lower", "problem_upper", "severity",
-                                                 "discordance", "seconds", "firm", "decision")]
+                                                 "discordance", "seconds", "firm", "decision", extra)]
   rownames(m) <- NULL
   attr(m, "settings") <- list(cut_reformulate = cut_reformulate, cut_revise = cut_revise, firm = firm,
-                              conf = conf, exclude = exclude, coded = coded, lang = lang,
+                              conf = conf, exclude = exclude, coded = coded, lang = lang, stages = stages,
                               N = length(unique(d$participant)))
   class(m) <- c("rp_metrics", "data.frame")
   m
@@ -136,9 +184,13 @@ print.rp_metrics <- function(x, digits = 2, ...) {
     print(as.data.frame(x), digits = digits + 1)
     return(invisible(x))
   }
+  if (length(s$stages) > 1) cols <- c(cols, intersect(paste0("problem_", s$stages), names(x)), "main_stage")
   y <- as.data.frame(x)[, cols]
-  for (v in c("comprehension", "problem", "problem_lower", "problem_upper", "severity")) y[[v]] <- round(y[[v]], digits)
-  cat("Item metrics (N = ", s$N, "; reformulate >= ", s$cut_reformulate, ", revise >= ", s$cut_revise, ")\n", sep = "")
+  num <- intersect(c("comprehension", "problem", "problem_lower", "problem_upper", "severity", paste0("problem_", s$stages)), names(y))
+  for (v in num) y[[v]] <- round(y[[v]], digits)
+  names(y) <- sub("^problem_(retrieval|judgment|response|comprehension)$", "p_\\1", names(y))
+  cat("Item metrics (N = ", s$N, "; reformulate >= ", s$cut_reformulate, ", revise >= ", s$cut_revise,
+      "; stages: ", paste(s$stages, collapse = ", "), ")\n", sep = "")
   print(y, row.names = FALSE)
   invisible(x)
 }
@@ -159,7 +211,8 @@ print.rp_metrics <- function(x, digits = 2, ...) {
 #'   `discordant` (of the shown problems, how many said "clear"),
 #'   `comprehension` (overall index), `items_ic80` (items with an index of .80
 #'   or more), `items`, `items_no_signal`, `firm` (item codes), `decisions`
-#'   (table), `time` (Spearman test, or `NULL`) and `metrics`.
+#'   (table), `time` (Spearman test, or `NULL`), `stages` (output of
+#'   [rp_stages()]: answers with a problem in each stage) and `metrics`.
 #' @export
 #' @examples
 #' ci <- rp_code(rp_example, rp_example_coding)
@@ -182,7 +235,8 @@ rp_summary <- function(data, ...) {
               declared_problems = sum(cl > 0, na.rm = TRUE), shown_problems = shown, discordant = disc,
               comprehension = ic, items_ic80 = sum(m$comprehension >= .80, na.rm = TRUE), items = nrow(m),
               items_no_signal = sum(m$signals == 0), firm = m$item_code[m$firm],
-              decisions = table(m$decision), time = time, metrics = m)
+              decisions = table(m$decision), time = time,
+              stages = rp_stages(d, stages = s$stages, conf = s$conf, lang = s$lang), metrics = m)
   class(out) <- "rp_summary"
   out
 }
@@ -202,6 +256,13 @@ print.rp_summary <- function(x, ...) {
   if (!is.na(x$comprehension)) {
     cat(sprintf("  Comprehension index:     %.2f (items >= .80: %d of %d)\n", x$comprehension, x$items_ic80, x$items))
     cat("  Paraphrases P or D:      ", x$shown_problems, " (", x$discordant, " from participants who said it was clear)\n", sep = "")
+  }
+  if (!is.null(x$stages) && nrow(x$stages) > 1) {
+    cat("  Answers with a problem, by stage:\n")
+    for (k in seq_len(nrow(x$stages))) {
+      cat(sprintf("    %-16s %d of %d (%s)\n", x$stages$stage[k], x$stages$problems[k], x$stages$assessable[k],
+                  pct(x$stages$proportion[k])))
+    }
   }
   cat("  Items with no signal:    ", x$items_no_signal, "\n", sep = "")
   cat("  Firm problems:           ", if (length(x$firm)) paste(x$firm, collapse = ", ") else "none", "\n", sep = "")
@@ -305,7 +366,8 @@ rp_quality <- function(data, min_chars = 50, min_seconds = 30, max_echo = .50) {
 
 #' Problems by dimension
 #'
-#' Share of answers with a signal of problem and comprehension index for each
+#' Share of answers with a signal of problem (in any stage analysed, see
+#' [rp_metrics()]) and comprehension index for each
 #' dimension of the test.
 #'
 #' @param data Answers read with [rp_read()] (with the item key, so that
@@ -338,31 +400,117 @@ rp_dimension <- function(data) {
 
 #' Problems by stage of the response process
 #'
-#' Counts the problems coded in each stage of the response model
-#' (comprehension, retrieval, judgment, response) and, if coded, by type of
-#' problem. It shows which part of the response process the evidence covers:
-#' a comprehension-only interview documents the first stage, not the others.
+#' Counts, for each stage of the response model (comprehension, retrieval,
+#' judgment, response), how many answers could be assessed and how many show
+#' a problem, with the Wilson interval of that proportion. It shows which part
+#' of the response process the evidence covers and where the items fail: a
+#' comprehension-only interview documents the first stage, not the others.
 #'
-#' @param data Answers coded with [rp_code()] including the column `stage`
-#'   (and, optionally, `problem_type`).
+#' Problems are, in comprehension, a declared difficulty or a paraphrase `P`
+#' or `D`; in retrieval and judgment, the codes `P` and `D` of
+#' `code_retrieval` and `code_judgment` (see [rp_scheme()]); in response, any
+#' difficulty to choose an option. Answers coded `E` are not assessable.
+#'
+#' @param data Answers read with [rp_read()] and coded with [rp_code()].
+#' @param stages Stages to count. By default, every stage with data.
 #' @param by_item If `TRUE`, counts by item and stage.
+#' @param exclude Participants to leave out.
+#' @param conf Confidence level of the interval.
+#' @param lang Language of the stage labels: `"es"` or `"en"`.
 #'
-#' @return A data frame with the counts by `stage` (and `problem_type` or
-#'   `item_code`).
+#' @return A data frame with `stage` (label), `key` (stage name in English),
+#'   `answers`, `assessable`, `problems`, `proportion` (problems /
+#'   assessable), `lower` and `upper` (Wilson interval); with `by_item = TRUE`
+#'   also `item_code`, one row per item and stage.
+#' @seealso [rp_scheme()], [rp_plot_stages()]
 #' @export
 #' @examples
 #' ci <- rp_code(rp_example, rp_example_coding)
 #' rp_stages(ci)
-rp_stages <- function(data, by_item = FALSE) {
+#' head(rp_stages(ci, by_item = TRUE))
+rp_stages <- function(data, stages = NULL, by_item = FALSE, exclude = NULL, conf = .95, lang = NULL) {
+  lang <- rp_lang(lang)
+  rp_check_data(data, c("participant", "n"))
   d <- as.data.frame(data)
-  if (!"stage" %in% names(d) || all(is.na(d$stage))) {
-    stop("No stage coded. Fill the column `stage` of the coding (see rp_scheme()).", call. = FALSE)
+  if (!is.null(exclude)) d <- d[!as.character(d$participant) %in% exclude, , drop = FALSE]
+  stages <- rp_pick_stages(d, stages)
+  if (!length(stages)) stop("No stage can be analysed: the answers have no clarity, coding or response probe.", call. = FALSE)
+  if (!"item_code" %in% names(d)) d$item_code <- paste0("I", d$n)
+  sm <- rp_stage_matrix(d, stages)
+  lab <- rp_stage_labels(lang)
+  one <- function(rows, s) {
+    a <- sum(sm$assessable[rows, s]); p <- sum(sm$signal[rows, s] & sm$assessable[rows, s])
+    ci <- rp_wilson(p, a, conf)
+    data.frame(stage = unname(lab[s]), key = s, answers = length(rows), assessable = a, problems = p,
+               proportion = if (a > 0) p / a else NA_real_, lower = ci[, "lower"], upper = ci[, "upper"],
+               stringsAsFactors = FALSE)
   }
-  d <- d[!is.na(d$stage) & d$stage != "", , drop = FALSE]
-  by <- if (by_item) c("item_code", "stage") else if ("problem_type" %in% names(d) && any(!is.na(d$problem_type))) c("stage", "problem_type") else "stage"
-  d$problem_type[is.na(d$problem_type)] <- "-"
-  out <- stats::aggregate(list(problems = rep(1L, nrow(d))), d[by], sum)
-  out <- out[order(out[[by[1]]], -out$problems), , drop = FALSE]
+  if (!by_item) {
+    out <- do.call(rbind, lapply(stages, function(s) one(seq_len(nrow(d)), s)))
+  } else {
+    items <- unique(d[order(d$n), "item_code"])
+    out <- do.call(rbind, lapply(items, function(k) {
+      rows <- which(d$item_code == k)
+      cbind(item_code = k, do.call(rbind, lapply(stages, function(s) one(rows, s))), stringsAsFactors = FALSE)
+    }))
+  }
+  rownames(out) <- NULL
+  out
+}
+
+#' Use of the answer options
+#'
+#' When the form asked participants to answer each item with the test's own
+#' scale (the `answer` probe), this function shows how the options were used:
+#' how many chose each one, which options nobody used and whether the answers
+#' concentrate in a single option. Unused options and answers piled on one
+#' extreme are evidence about the response stage (Tourangeau et al., 2000):
+#' the categories may not fit how people place their judgment. With the small
+#' samples of a cognitive interview, read them as clues to be checked against
+#' the reasons given (`judgment`) and the difficulty declared (`response`).
+#'
+#' @param data Answers read with [rp_read()] with the column `answer`.
+#' @param levels The answer options in order. By default, the levels of
+#'   `answer` if it is a factor or, otherwise, the options observed in order
+#'   of appearance (pass them to also count the options nobody chose).
+#' @param concentration Share of the most chosen option from which the
+#'   answers are flagged as concentrated.
+#' @param exclude Participants to leave out.
+#'
+#' @return A data frame with one row per item: `n`, `item_code`, `answers`,
+#'   one column with the count of each option, `unused` (options nobody
+#'   chose), `mode` (most chosen option), `mode_share` and `concentrated`.
+#' @references Tourangeau, R., Rips, L. J., & Rasinski, K. (2000). *The
+#'   psychology of survey response*. Cambridge University Press.
+#'   \doi{10.1017/CBO9780511819322}
+#' @export
+#' @examples
+#' rp_options(rp_example, levels = c("Nunca", "A veces", "Casi siempre", "Siempre"))
+rp_options <- function(data, levels = NULL, concentration = .80, exclude = NULL) {
+  rp_check_data(data, c("participant", "n", "answer"))
+  d <- as.data.frame(data)
+  if (!is.null(exclude)) d <- d[!as.character(d$participant) %in% exclude, , drop = FALSE]
+  if (!"item_code" %in% names(d)) d$item_code <- paste0("I", d$n)
+  ans <- trimws(as.character(d$answer))
+  ans[ans %in% c("", "NA")] <- NA
+  if (all(is.na(ans))) stop("The column `answer` is empty: the form did not ask the `answer` probe.", call. = FALSE)
+  if (is.null(levels)) levels <- if (is.factor(d$answer)) base::levels(d$answer) else unique(stats::na.omit(ans))
+  bad <- setdiff(stats::na.omit(unique(ans)), levels)
+  if (length(bad)) stop("Answers not in `levels`: ", paste(bad, collapse = ", "), call. = FALSE)
+  d$.ans <- factor(ans, levels = levels)
+  items <- unique(d[order(d$n), c("n", "item_code")])
+  out <- do.call(rbind, lapply(seq_len(nrow(items)), function(i) {
+    x <- d$.ans[d$n == items$n[i]]
+    tb <- table(x)
+    k <- sum(tb)
+    row <- data.frame(n = items$n[i], item_code = items$item_code[i], answers = k, stringsAsFactors = FALSE)
+    row <- cbind(row, as.data.frame(as.list(stats::setNames(as.integer(tb), levels)), check.names = FALSE))
+    row$unused <- paste(levels[tb == 0], collapse = "; ")
+    row$mode <- if (k > 0) levels[which.max(tb)] else NA_character_
+    row$mode_share <- if (k > 0) max(tb) / k else NA_real_
+    row$concentrated <- !is.na(row$mode_share) & row$mode_share >= concentration
+    row
+  }))
   rownames(out) <- NULL
   out
 }
@@ -371,7 +519,9 @@ rp_stages <- function(data, by_item = FALSE) {
 #'
 #' Lists, for the chosen items, what each participant with a signal said: the
 #' code and note of the paraphrase, or the clarity marked and the confusing
-#' part. It is the qualitative material needed to rewrite an item.
+#' part and, when those probes were asked, what came to mind, the answer
+#' chosen, the reason and the difficulty to choose, with their codes. It is
+#' the qualitative material needed to rewrite an item.
 #'
 #' @param data Answers read with [rp_read()] and coded with [rp_code()].
 #' @param items Item codes or numbers to show. By default, items whose
@@ -379,7 +529,10 @@ rp_stages <- function(data, by_item = FALSE) {
 #' @param ... Arguments passed to [rp_metrics()] when `items` is `NULL`.
 #'
 #' @return A data frame with `item_code`, `item`, `participant`, `clarity`,
-#'   `code`, `paraphrase`, `note` and `confusing`, one row per signal.
+#'   `code`, `paraphrase`, `note`, `confusing` and, when present,
+#'   `code_retrieval`, `retrieval`, `note_retrieval`, `answer`,
+#'   `code_judgment`, `judgment`, `note_judgment` and `response`, one row per
+#'   participant with a signal.
 #' @export
 #' @examples
 #' ci <- rp_code(rp_example, rp_example_coding)
@@ -391,10 +544,13 @@ rp_readings <- function(data, items = NULL, ...) {
     items <- m$item_code[as.integer(m$decision) > 1]
   }
   d <- d[d$item_code %in% items | d$n %in% suppressWarnings(as.integer(items)), , drop = FALSE]
-  d <- d[rp_signal(d), , drop = FALSE]
-  cols <- intersect(c("item_code", "item", "participant", "clarity", "code", "paraphrase", "note", "confusing"), names(d))
+  st <- list(...)$stages
+  d <- d[rp_signal(d, st), , drop = FALSE]
+  cols <- intersect(c("item_code", "item", "participant", "clarity", "code", "paraphrase", "note", "confusing",
+                      "code_retrieval", "retrieval", "note_retrieval", "answer", "code_judgment", "judgment",
+                      "note_judgment", "response"), names(d))
   d <- d[order(match(d$item_code, items), d$participant), cols, drop = FALSE]
-  if ("clarity" %in% names(d)) d$clarity <- as.character(d$clarity)
+  for (v in intersect(c("clarity", "answer", "response"), names(d))) d[[v]] <- as.character(d[[v]])
   rownames(d) <- NULL
   d
 }

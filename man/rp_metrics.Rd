@@ -11,12 +11,14 @@ rp_metrics(
   firm = 0.2,
   conf = 0.95,
   exclude = NULL,
+  stages = NULL,
   lang = NULL
 )
 }
 \arguments{
 \item{data}{Answers read with \code{\link[=rp_read]{rp_read()}} and, ideally, coded with
-\code{\link[=rp_code]{rp_code()}}. Without coding, only declared clarity is used.}
+\code{\link[=rp_code]{rp_code()}}. Without coding, only declared clarity (and the \code{response}
+probe, if asked) is used.}
 
 \item{cut_reformulate, cut_revise}{Cut-offs of the problem index.}
 
@@ -26,39 +28,59 @@ rp_metrics(
 
 \item{exclude}{Participants to leave out (for example \code{c("P2", "P6")}).}
 
-\item{lang}{Language of the decision labels: \code{"es"} or \code{"en"}.}
+\item{stages}{Stages that count as signals: any of \code{"comprehension"},
+\code{"retrieval"}, \code{"judgment"} and \code{"response"}. By default, every stage
+with data (and coding, for retrieval and judgment). Use
+\code{stages = "comprehension"} to reproduce a comprehension-only analysis.}
+
+\item{lang}{Language of the decision and stage labels: \code{"es"} or \code{"en"}.}
 }
 \value{
 A data frame of class \code{rp_metrics}, one row per item ordered from
 the most to the least problematic, with \code{n}, \code{item_code}, \code{dimension},
 \code{item}, \code{participants}, \code{clarity} (participants who declared difficulty),
-\code{A}, \code{P}, \code{D}, \code{E}, \code{assessable}, \code{signals}, \code{comprehension}, \code{problem},
-\code{problem_lower}, \code{problem_upper}, \code{severity}, \code{discordance}, \code{seconds}
-(median, when timed), \code{firm} and \code{decision}.
+\code{A}, \code{P}, \code{D}, \code{E} (paraphrase codes), \code{assessable}, \code{signals},
+\code{comprehension}, \code{problem}, \code{problem_lower}, \code{problem_upper}, \code{severity},
+\code{discordance}, \code{seconds} (median, when timed), \code{firm}, \code{decision}, one
+\verb{problem_<stage>} column per stage analysed, \code{retrieval_index} and
+\code{judgment_index} (when those stages are analysed) and \code{main_stage}.
 }
 \description{
 Computes, for each item, the metrics that turn the cognitive interview into
 a decision: keep, revise or reformulate. A \emph{signal} is a participant who
-declared some difficulty (clarity "somewhat" or "not clear") or whose
-paraphrase was partial (\code{P}) or gave another meaning (\code{D}). Echoes (\code{E}) are
-not signals, because they do not allow comprehension to be judged.
+shows a problem in any of the stages analysed:
 }
 \details{
-\tabular{lll}{
+\itemize{
+\item comprehension: declared difficulty (clarity "somewhat" or "not clear") or
+a paraphrase partial (\code{P}) or with another meaning (\code{D});
+\item retrieval: a recall coded \code{P} (vague) or \code{D} (another domain);
+\item judgment: a reason coded \code{P} (another criterion) or \code{D} (it contradicts
+the answer);
+\item response: some difficulty to choose an option ("a little" or "hard").
+}
+
+Echoes and answers that cannot be assessed (\code{E}) are not signals. See
+\code{\link[=rp_scheme]{rp_scheme()}} for the meaning of each code in each stage.\tabular{lll}{
    Metric \tab What it measures \tab How it is computed \cr
    \code{comprehension} (IC) \tab Share that understood the item as intended \tab \code{A} paraphrases / assessable paraphrases (echoes excluded) \cr
-   \code{problem} (IP) \tab Share with some signal \tab Participants with a signal / participants \cr
+   \code{problem} (IP) \tab Share with some signal \tab Participants with a signal in any stage / participants \cr
    \code{problem_lower}, \code{problem_upper} \tab How much IP could vary in another sample \tab Wilson interval \cr
-   \code{severity} \tab How serious the problems were (0 to 2) \tab Mean of the larger of: \code{D} = 2, \code{P} = 1, "not clear" = 2, "somewhat" = 1 \cr
+   \code{severity} \tab How serious the problems were (0 to 2) \tab Mean of the largest weight across stages: \code{D} = 2, \code{P} = 1, "not clear" or "hard" = 2, "somewhat" or "a little" = 1 \cr
    \code{discordance} \tab Said it was clear but did not understand \tab Clarity "yes" with paraphrase \code{P} or \code{D} \cr
    \code{firm} \tab The problem is unlikely to be chance \tab Lower limit of IP above \code{firm} \cr
+   \verb{problem_<stage>} \tab Share with a signal in that stage \tab Participants with a signal in the stage / participants \cr
+   \code{retrieval_index}, \code{judgment_index} \tab Share of adequate recalls and reasons \tab \code{A} / assessable codes of the stage \cr
+   \code{main_stage} \tab Where the item fails \tab Stage with the highest \verb{problem_<stage>} \cr
 }
 
 
 The decision uses proportions so that it does not depend on the number of
 participants: reformulate when IP reaches \code{cut_reformulate}, revise when it
 reaches \code{cut_revise}, keep otherwise. The cut-offs are tentative and should
-be declared in the method.
+be declared in the method. With only comprehension probes, the evidence
+covers the first stage of the response process and \code{main_stage} is always
+comprehension.
 }
 \examples{
 ci <- rp_code(rp_example, rp_example_coding)

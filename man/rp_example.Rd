@@ -7,7 +7,8 @@
 \format{
 \code{rp_example}: a data frame with 96 rows (participant by item) and
 the columns \code{participant}, \code{id}, \code{n}, \code{item_code}, \code{dimension}, \code{item},
-\code{clarity} (ordered factor), \code{paraphrase}, \code{confusing} and \code{seconds}.
+\code{clarity} (ordered factor), \code{paraphrase}, \code{confusing}, \code{retrieval},
+\code{answer}, \code{judgment}, \code{response} and \code{seconds}.
 }
 \source{
 Simulated with \code{data-raw/rp_example.R}.
@@ -17,7 +18,10 @@ rp_example
 }
 \description{
 Simulated answers of 12 participants to 8 items of a fictitious
-questionnaire on study engagement, gathered with the default probes of
-\code{\link[=rp_form]{rp_form()}}. They are not real data.
+questionnaire on study engagement, gathered with every probe of
+\code{\link[=rp_form]{rp_form()}}: clarity, paraphrase, confusing part, what came to mind
+(retrieval), the answer on the test's scale ("Nunca", "A veces", "Casi
+siempre", "Siempre"), the reason for that answer (judgment) and the
+difficulty to choose an option (response). They are not real data.
 }
 \keyword{datasets}

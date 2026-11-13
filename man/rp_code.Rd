@@ -2,39 +2,43 @@
 % Please edit documentation in R/coding.R
 \name{rp_code}
 \alias{rp_code}
-\title{Add the coding of the paraphrases to the answers}
+\title{Add the coding of the open answers to the answers}
 \usage{
 rp_code(data, coding, default = "A")
 }
 \arguments{
 \item{data}{Answers read with \code{\link[=rp_read]{rp_read()}}.}
 
-\item{coding}{Data frame or path to a csv or Excel file with the columns
-\code{participant} (or \code{p}), \code{n}, \code{code} and, optionally, \code{note}, \code{stage} and
-\code{problem_type}.}
+\item{coding}{Data frame or path to a csv or Excel file with \code{participant}
+(or \code{p}), \code{n} and one or more code columns.}
 
 \item{default}{Code for answers left without a code. Use \code{NA} to keep them
-uncoded (they are then left out of the comprehension index).}
+uncoded (they are then left out of the indices).}
 }
 \value{
-\code{data} with the columns \code{code}, \code{note}, \code{stage} and \code{problem_type}.
+\code{data} with the code and note columns of every coded stage and
+\code{problem_type}.
 }
 \description{
 Joins a coding table (from \code{\link[=rp_coding_template]{rp_coding_template()}}, a csv or an Excel
-file) to the answers by participant and item. Answers that are not in the
-coding, or whose code is empty, receive \code{default}. This allows a quick
-coding in which only the problematic paraphrases are listed and the rest
-count as adequate (\code{default = "A"}).
+file) to the answers by participant and item. It takes every code column
+present: \code{code} (comprehension), \code{code_retrieval} and \code{code_judgment}, with
+their notes. Answers that are not in the coding, or whose code is empty,
+receive \code{default}, but only in the stages whose probe the participant
+answered. This allows a quick coding in which only the problematic answers
+are listed and the rest count as adequate (\code{default = "A"}).
 }
 \details{
 The coding may identify participants as \code{P3} (column \code{participant}) or by
-their order number (column \code{p}). Spanish names \code{codigo}, \code{nota}, \code{etapa}
-and \code{tipo_problema} are accepted.
+their order number (column \code{p}). Spanish names are accepted: \code{codigo},
+\code{nota}, \code{codigo_recuperacion}, \code{nota_recuperacion}, \code{codigo_juicio},
+\code{nota_juicio} and \code{tipo_problema}.
 }
 \examples{
 ci <- rp_code(rp_example, rp_example_coding)
 table(ci$code)
+table(ci$code_judgment)
 }
 \seealso{
-\code{\link[=rp_coding_template]{rp_coding_template()}}, \code{\link[=rp_metrics]{rp_metrics()}}
+\code{\link[=rp_coding_template]{rp_coding_template()}}, \code{\link[=rp_scheme]{rp_scheme()}}, \code{\link[=rp_metrics]{rp_metrics()}}
 }

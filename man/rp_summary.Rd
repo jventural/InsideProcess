@@ -18,7 +18,8 @@ An object of class \code{rp_summary}: a list with \code{participants},
 \code{discordant} (of the shown problems, how many said "clear"),
 \code{comprehension} (overall index), \code{items_ic80} (items with an index of .80
 or more), \code{items}, \code{items_no_signal}, \code{firm} (item codes), \code{decisions}
-(table), \code{time} (Spearman test, or \code{NULL}) and \code{metrics}.
+(table), \code{time} (Spearman test, or \code{NULL}), \code{stages} (output of
+\code{\link[=rp_stages]{rp_stages()}}: answers with a problem in each stage) and \code{metrics}.
 }
 \description{
 Gathers the figures needed to write the results: participants and answers,

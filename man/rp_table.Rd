@@ -7,7 +7,9 @@
 rp_table(
   data,
   type = c("metrics", "decision", "participants", "clarity", "confusing", "codes",
-    "sensitivity", "quality", "dimension", "stages", "matrix"),
+    "sensitivity", "quality", "dimension", "stages", "options", "matrix"),
+  stage = c("comprehension", "retrieval", "judgment"),
+  levels = NULL,
   exclude = NULL,
   proposals = NULL,
   gt = FALSE,
@@ -20,6 +22,11 @@ rp_table(
 \item{data}{Answers read with \code{\link[=rp_read]{rp_read()}} and coded with \code{\link[=rp_code]{rp_code()}}.}
 
 \item{type}{Table to build (see Details).}
+
+\item{stage}{For \code{"codes"}: \code{"comprehension"}, \code{"retrieval"} or
+\code{"judgment"}.}
+
+\item{levels}{For \code{"options"}: the answer options in order.}
 
 \item{exclude}{Participants to leave out in \code{"sensitivity"}.}
 
@@ -48,13 +55,18 @@ Each \code{type} is computed from the answers (coded with \code{\link[=rp_code]{
 \item \code{"participants"}: profile, items not fully clear and minutes of each participant.
 \item \code{"clarity"}: frequency of each clarity answer.
 \item \code{"confusing"}: confusing words or parts written by participants.
-\item \code{"codes"}: frequency of each paraphrase code.
+\item \code{"codes"}: frequency of each code of a stage (\code{stage}), with its meaning.
 \item \code{"decision"}: signals by source (clarity, \code{P}, \code{D}, \code{E}) and decision per item.
-\item \code{"metrics"}: IC, IP with its Wilson interval, severity, discordance and decision.
+\item \code{"metrics"}: IC, IP with its Wilson interval, severity, discordance and
+decision; when more than one stage is analysed, also the share with a
+problem in each stage and the main stage.
 \item \code{"sensitivity"}: decision with everybody and without \code{exclude}.
 \item \code{"quality"}: length, time and echoes of each participant.
 \item \code{"dimension"}: problems and comprehension by dimension.
-\item \code{"stages"}: problems by stage of the response process.
+\item \code{"stages"}: answers with a problem in each stage of the response process,
+with the Wilson interval.
+\item \code{"options"}: use of the answer options of the test in each item (see
+\code{\link[=rp_options]{rp_options()}}).
 \item \code{"matrix"}: one row per item with decision, main problems and, if given,
 the proposed wording (\code{proposals}). It suits the supplementary material.
 }
@@ -63,4 +75,6 @@ the proposed wording (\code{proposals}). It suits the supplementary material.
 ci <- rp_code(rp_example, rp_example_coding)
 rp_table(ci, "metrics")
 rp_table(ci, "clarity")
+rp_table(ci, "stages")
+rp_table(ci, "codes", stage = "judgment")
 }

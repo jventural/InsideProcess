@@ -4,12 +4,22 @@
 \alias{rp_agreement}
 \title{Agreement between two coders}
 \usage{
-rp_agreement(coder1, coder2, default = "A", conf = 0.95)
+rp_agreement(
+  coder1,
+  coder2,
+  stage = c("comprehension", "retrieval", "judgment"),
+  default = "A",
+  conf = 0.95
+)
 }
 \arguments{
 \item{coder1, coder2}{Codings of the same answers: data frames or paths
-with \code{participant} (or \code{p}), \code{n} and \code{code}, or two character vectors of
-codes of the same length.}
+with \code{participant} (or \code{p}), \code{n} and the code column of \code{stage}, or two
+character vectors of codes of the same length.}
+
+\item{stage}{Stage whose codes are compared: \code{"comprehension"} (column
+\code{code}), \code{"retrieval"} (\code{code_retrieval}) or \code{"judgment"}
+(\code{code_judgment}). Ignored when codes are given as vectors.}
 
 \item{default}{Code given to answers missing from one of the codings
 (as in \code{\link[=rp_code]{rp_code()}}). Use \code{NA} to drop them.}
@@ -17,23 +27,24 @@ codes of the same length.}
 \item{conf}{Confidence level of the intervals.}
 }
 \value{
-An object of class \code{rp_agreement}: a list with \code{n} (answers
-compared), \code{agreement} (proportion), \code{kappa} and \code{ac1} (each a vector with
-estimate, lower and upper limit) and \code{table} (cross table of codes).
+An object of class \code{rp_agreement}: a list with \code{stage}, \code{n}
+(answers compared), \code{agreement} (proportion), \code{kappa} and \code{ac1} (each a
+vector with estimate, lower and upper limit) and \code{table} (cross table of
+codes).
 }
 \description{
-Compares the codes that two coders gave to the same paraphrases and
-reports the percentage of agreement, Cohen's kappa and Gwet's AC1, with
-their asymptotic confidence intervals, and the cross table of codes.
-AC1 is reported because, when almost every paraphrase is adequate, kappa
-can be low even with high agreement (the kappa paradox).
+Compares the codes that two coders gave to the same answers in one stage
+and reports the percentage of agreement, Cohen's kappa and Gwet's AC1, with
+their asymptotic confidence intervals, and the cross table of codes. AC1 is
+reported because, when almost every answer is adequate, kappa can be low
+even with high agreement (the kappa paradox). Run it once per coded stage.
 }
 \examples{
-set.seed(1)
-c1 <- rp_example_coding$code
+c1 <- rp_example_coding
 c2 <- c1
-c2[sample(length(c2), 3)] <- "A"
-rp_agreement(c1, c2)
+i <- which(!is.na(c2$code_judgment))[1:3]
+c2$code_judgment[i] <- "A"
+rp_agreement(c1, c2, stage = "judgment")
 }
 \references{
 Gwet, K. L. (2008). Computing inter-rater reliability and its

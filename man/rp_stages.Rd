@@ -4,25 +4,52 @@
 \alias{rp_stages}
 \title{Problems by stage of the response process}
 \usage{
-rp_stages(data, by_item = FALSE)
+rp_stages(
+  data,
+  stages = NULL,
+  by_item = FALSE,
+  exclude = NULL,
+  conf = 0.95,
+  lang = NULL
+)
 }
 \arguments{
-\item{data}{Answers coded with \code{\link[=rp_code]{rp_code()}} including the column \code{stage}
-(and, optionally, \code{problem_type}).}
+\item{data}{Answers read with \code{\link[=rp_read]{rp_read()}} and coded with \code{\link[=rp_code]{rp_code()}}.}
+
+\item{stages}{Stages to count. By default, every stage with data.}
 
 \item{by_item}{If \code{TRUE}, counts by item and stage.}
+
+\item{exclude}{Participants to leave out.}
+
+\item{conf}{Confidence level of the interval.}
+
+\item{lang}{Language of the stage labels: \code{"es"} or \code{"en"}.}
 }
 \value{
-A data frame with the counts by \code{stage} (and \code{problem_type} or
-\code{item_code}).
+A data frame with \code{stage} (label), \code{key} (stage name in English),
+\code{answers}, \code{assessable}, \code{problems}, \code{proportion} (problems /
+assessable), \code{lower} and \code{upper} (Wilson interval); with \code{by_item = TRUE}
+also \code{item_code}, one row per item and stage.
 }
 \description{
-Counts the problems coded in each stage of the response model
-(comprehension, retrieval, judgment, response) and, if coded, by type of
-problem. It shows which part of the response process the evidence covers:
-a comprehension-only interview documents the first stage, not the others.
+Counts, for each stage of the response model (comprehension, retrieval,
+judgment, response), how many answers could be assessed and how many show
+a problem, with the Wilson interval of that proportion. It shows which part
+of the response process the evidence covers and where the items fail: a
+comprehension-only interview documents the first stage, not the others.
+}
+\details{
+Problems are, in comprehension, a declared difficulty or a paraphrase \code{P}
+or \code{D}; in retrieval and judgment, the codes \code{P} and \code{D} of
+\code{code_retrieval} and \code{code_judgment} (see \code{\link[=rp_scheme]{rp_scheme()}}); in response, any
+difficulty to choose an option. Answers coded \code{E} are not assessable.
 }
 \examples{
 ci <- rp_code(rp_example, rp_example_coding)
 rp_stages(ci)
+head(rp_stages(ci, by_item = TRUE))
+}
+\seealso{
+\code{\link[=rp_scheme]{rp_scheme()}}, \code{\link[=rp_plot_stages]{rp_plot_stages()}}
 }

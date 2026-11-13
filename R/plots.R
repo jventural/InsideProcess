@@ -45,15 +45,19 @@ rp_plot_clarity <- function(data, label = c("both", "code"), lang = NULL) {
 
 strwrap_list <- function(x, width) lapply(x, strwrap, width = width)
 
-#' Map of paraphrase codes by item and participant
+#' Map of codes by item and participant
 #'
 #' Tile chart with one row per item and one column per participant, coloured
-#' by the paraphrase code (A, P, D, E). A black dot marks that the participant
-#' also declared a difficulty. Items with more problems are at the top, so the
-#' figure shows at once which items fail and which participants concentrate
-#' the problems or only echoed the items.
+#' by the code of one stage (A, P, D, E; see [rp_scheme()]). In the
+#' comprehension stage a black dot marks that the participant also declared a
+#' difficulty. Items with more problems are at the top, so the figure shows at
+#' once which items fail and which participants concentrate the problems or
+#' gave answers that cannot be assessed.
 #'
 #' @param data Answers coded with [rp_code()].
+#' @param stage Stage whose codes are drawn: `"comprehension"` (paraphrase,
+#'   column `code`), `"retrieval"` (`code_retrieval`) or `"judgment"`
+#'   (`code_judgment`).
 #' @param lang Language of the labels: `"es"` or `"en"`.
 #'
 #' @return A ggplot object.
@@ -61,23 +65,30 @@ strwrap_list <- function(x, width) lapply(x, strwrap, width = width)
 #' @examples
 #' ci <- rp_code(rp_example, rp_example_coding)
 #' rp_plot_map(ci)
-rp_plot_map <- function(data, lang = NULL) {
+#' rp_plot_map(ci, stage = "judgment")
+rp_plot_map <- function(data, stage = c("comprehension", "retrieval", "judgment"), lang = NULL) {
+  stage <- match.arg(stage)
   lang <- rp_lang(lang)
   d <- as.data.frame(data)
-  if (!rp_has_code(d)) stop("No coding: add it with rp_code().", call. = FALSE)
-  d$.signal <- rp_signal(d)
+  cc <- rp_stage_cols[[stage]]
+  if (!cc %in% names(d) || all(is.na(d[[cc]]))) stop("No `", cc, "` coding: add it with rp_code().", call. = FALSE)
+  d <- d[!is.na(d[[cc]]), , drop = FALSE]
+  d$.code <- d[[cc]]
+  d$.signal <- d$.code %in% c("P", "D")
+  if (stage == "comprehension") d$.signal <- d$.signal | (!is.na(rp_clarity_level(d$clarity)) & rp_clarity_level(d$clarity) > 0)
   k <- tapply(d$.signal, d$item_code, sum)
   d$item_code <- factor(d$item_code, levels = names(sort(k)))
   d$participant <- rp_order_participants(d$participant)
-  d$code <- factor(d$code, levels = c("A", "P", "D", "E"))
-  d$.unclear <- rp_clarity_level(d$clarity) > 0
-  lab <- if (lang == "es") c(A = "A capta", P = "P parcial", D = "D otro sentido", E = "E eco")
-         else c(A = "A adequate", P = "P partial", D = "D different", E = "E echo")
-  ggplot2::ggplot(d, ggplot2::aes(.data$participant, .data$item_code, fill = .data$code)) +
+  d$.code <- factor(d$.code, levels = c("A", "P", "D", "E"))
+  d$.unclear <- stage == "comprehension" & !is.na(rp_clarity_level(d$clarity)) & rp_clarity_level(d$clarity) > 0
+  lab <- rp_code_short(stage, lang)
+  title <- unname(c(comprehension = if (lang == "es") "Parafraseo" else "Paraphrase",
+                    retrieval = if (lang == "es") "Recuerdo" else "Recall",
+                    judgment = if (lang == "es") "Raz\u00F3n" else "Reason")[stage])
+  ggplot2::ggplot(d, ggplot2::aes(.data$participant, .data$item_code, fill = .data$.code)) +
     ggplot2::geom_tile(color = "white", linewidth = .8) +
     ggplot2::geom_point(data = d[d$.unclear, , drop = FALSE], size = 2, show.legend = FALSE) +
-    ggplot2::scale_fill_manual(values = rp_col_code, labels = lab, drop = FALSE,
-                               name = if (lang == "es") "Parafraseo" else "Paraphrase") +
+    ggplot2::scale_fill_manual(values = rp_col_code, labels = lab, drop = FALSE, name = title) +
     ggplot2::labs(x = NULL, y = NULL) +
     ggplot2::theme_minimal(base_size = 10) +
     ggplot2::theme(panel.grid = ggplot2::element_blank(), legend.position = "top")
@@ -145,4 +156,46 @@ rp_plot_problem <- function(metrics, top = NULL, lang = NULL) {
     ggplot2::labs(x = if (lang == "es") "\u00CDndice de problema (IC 95 % de Wilson)" else "Problem index (95% Wilson interval)", y = NULL) +
     ggplot2::theme_minimal(base_size = 10) +
     ggplot2::theme(legend.position = "top", panel.grid.minor = ggplot2::element_blank())
+}
+
+#' Problems by item and stage of the response process (figure)
+#'
+#' Heat map with one row per item and one column per stage analysed
+#' (comprehension, retrieval, judgment, response), coloured and labelled by
+#' the share of participants with a problem in that stage. It shows where each
+#' item fails: an item misunderstood needs new wording, while an item
+#' understood but answered with another criterion, or hard to place on the
+#' scale, needs a different change.
+#'
+#' @param metrics Output of [rp_metrics()].
+#' @param lang Language of the labels: `"es"` or `"en"`.
+#'
+#' @return A ggplot object.
+#' @export
+#' @examples
+#' ci <- rp_code(rp_example, rp_example_coding)
+#' rp_plot_stages(rp_metrics(ci))
+rp_plot_stages <- function(metrics, lang = NULL) {
+  if (!inherits(metrics, "rp_metrics")) stop("`metrics` must come from rp_metrics().", call. = FALSE)
+  s <- attr(metrics, "settings")
+  lang <- if (is.null(lang)) s$lang else rp_lang(lang)
+  m <- as.data.frame(metrics)
+  st <- intersect(s$stages, sub("^problem_", "", names(m)))
+  lab <- rp_stage_labels(lang)
+  long <- do.call(rbind, lapply(st, function(k) {
+    data.frame(item_code = m$item_code, stage = unname(lab[k]), value = m[[paste0("problem_", k)]], stringsAsFactors = FALSE)
+  }))
+  long$item_code <- factor(long$item_code, levels = rev(m$item_code[order(-m$problem, -m$severity, m$n)]))
+  long$stage <- factor(long$stage, levels = unname(lab[st]))
+  long$txt <- ifelse(is.na(long$value), "", paste0(round(100 * long$value), "%"))
+  ggplot2::ggplot(long, ggplot2::aes(.data$stage, .data$item_code, fill = .data$value)) +
+    ggplot2::geom_tile(colour = "white", linewidth = .8) +
+    ggplot2::geom_text(ggplot2::aes(label = .data$txt), size = 3) +
+    ggplot2::scale_fill_gradient(low = "#FFFFFF", high = "#C62828", limits = c(0, 1), na.value = "grey90",
+                                 labels = function(x) paste0(round(100 * x), "%"),
+                                 name = if (lang == "es") "Con problema" else "With a problem") +
+    ggplot2::scale_x_discrete(position = "top") +
+    ggplot2::labs(x = NULL, y = NULL) +
+    ggplot2::theme_minimal(base_size = 10) +
+    ggplot2::theme(panel.grid = ggplot2::element_blank(), legend.position = "bottom")
 }

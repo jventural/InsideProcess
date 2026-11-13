@@ -37,12 +37,15 @@ test_that("rp_read reads the csv of the offline form", {
   expect_equal(x$item_code, c("DIS01", "ORG01"))
   expect_equal(attr(x, "participants")$edad, 20)
   tpl <- rp_coding_template(x, file.path(tempdir(), "cod.csv"))
-  expect_true(all(c("code", "note", "stage") %in% names(tpl)))
+  expect_true(all(c("code", "note", "problem_type") %in% names(tpl)))
+  tpl2 <- rp_coding_template(rp_example)
+  expect_true(all(c("code_retrieval", "note_retrieval", "code_judgment", "note_judgment") %in% names(tpl2)))
 })
 
 test_that("tables and figures are built", {
   ci <- rp_code(rp_example, rp_example_coding)
   for (t in c("metrics", "decision", "participants", "clarity", "confusing", "codes", "quality", "dimension", "stages", "matrix")) {
+    expect_s3_class(rp_table(ci, t, stages = "comprehension"), "data.frame")
     expect_s3_class(rp_table(ci, t), "data.frame")
   }
   expect_s3_class(rp_table(ci, "sensitivity", exclude = "P9"), "data.frame")
@@ -50,4 +53,8 @@ test_that("tables and figures are built", {
   expect_s3_class(rp_plot_clarity(ci), "ggplot")
   expect_s3_class(rp_plot_dimension(ci), "ggplot")
   expect_s3_class(rp_plot_problem(rp_metrics(ci)), "ggplot")
+  expect_s3_class(rp_plot_stages(rp_metrics(ci)), "ggplot")
+  expect_s3_class(rp_plot_map(ci, stage = "retrieval"), "ggplot")
+  expect_s3_class(rp_table(ci, "codes", stage = "judgment"), "data.frame")
+  expect_s3_class(rp_table(ci, "options", levels = c("Nunca", "A veces", "Casi siempre", "Siempre")), "data.frame")
 })

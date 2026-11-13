@@ -2,7 +2,7 @@
 % Please edit documentation in R/coding.R
 \name{rp_scheme}
 \alias{rp_scheme}
-\title{Codes for paraphrases and stages of the response process}
+\title{Coding scheme for the stages of the response process}
 \usage{
 rp_scheme(lang = NULL)
 }
@@ -10,24 +10,35 @@ rp_scheme(lang = NULL)
 \item{lang}{\code{"es"} or \code{"en"}.}
 }
 \value{
-A list with two data frames: \code{codes} (code, label, severity weight)
-and \code{stages} (stage and the question it answers).
+A list with three data frames: \code{codes} (code, severity weight and
+meaning in each coded stage), \code{stages} (stage, the question it answers,
+the probes that document it and the column that holds its code) and
+\code{columns} (code and note columns expected in a coding table).
 }
 \description{
-Returns the coding scheme used by the package: four codes for each
-paraphrase and the four stages of the survey response model (Tourangeau et
-al., 2000) to which a problem can be assigned.
+Returns the coding scheme used by the package. The open answers of each
+coded stage take the same four letters, so that severity and agreement are
+computed in the same way, but each letter has a meaning of its own in each
+stage of the survey response model (Tourangeau et al., 2000):
 }
 \details{
-A paraphrase is judged against the intended meaning of the item and, when
-there is one, the operational definition of its dimension. \code{A} (adequate)
-captures the idea. \code{P} (partial) keeps only part of it or shifts the focus.
-\code{D} (different) gives the item another meaning. \code{E} (echo) repeats the
-sentence or answers it instead of explaining it, so comprehension cannot be
-judged; echoes are left out of the comprehension index.
+\tabular{llll}{
+   Code \tab Comprehension (paraphrase) \tab Retrieval (what came to mind) \tab Judgment (why that answer) \cr
+   \code{A} \tab Captures the intended idea \tab Recalls situations relevant to the construct and its context \tab The reason supports the answer and rests on the construct \cr
+   \code{P} \tab Partial, or shifts the focus \tab Vague or generic recall \tab Rests on another criterion (what is desirable, what others do, a hypothetical case) \cr
+   \code{D} \tab Gives the item another meaning \tab Recalls another domain or construct \tab The reason contradicts the chosen answer \cr
+   \code{E} \tab Echo: repeats the item \tab Nothing assessable \tab Nothing assessable \cr
+}
+
+
+\code{P} weighs 1 and \code{D} weighs 2 in the severity; \code{E} is left out of the
+indices because it does not allow the stage to be judged. The response
+stage is not coded: it comes from the closed \code{response} probe ("was it hard
+to choose an option?") and from the use of the answer options
+(\code{\link[=rp_options]{rp_options()}}).
 }
 \examples{
-rp_scheme()
+rp_scheme()$codes
 }
 \references{
 Tourangeau, R., Rips, L. J., & Rasinski, K. (2000). \emph{The

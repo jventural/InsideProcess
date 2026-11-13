@@ -2,12 +2,20 @@
 % Please edit documentation in R/plots.R
 \name{rp_plot_map}
 \alias{rp_plot_map}
-\title{Map of paraphrase codes by item and participant}
+\title{Map of codes by item and participant}
 \usage{
-rp_plot_map(data, lang = NULL)
+rp_plot_map(
+  data,
+  stage = c("comprehension", "retrieval", "judgment"),
+  lang = NULL
+)
 }
 \arguments{
 \item{data}{Answers coded with \code{\link[=rp_code]{rp_code()}}.}
+
+\item{stage}{Stage whose codes are drawn: \code{"comprehension"} (paraphrase,
+column \code{code}), \code{"retrieval"} (\code{code_retrieval}) or \code{"judgment"}
+(\code{code_judgment}).}
 
 \item{lang}{Language of the labels: \code{"es"} or \code{"en"}.}
 }
@@ -16,12 +24,14 @@ A ggplot object.
 }
 \description{
 Tile chart with one row per item and one column per participant, coloured
-by the paraphrase code (A, P, D, E). A black dot marks that the participant
-also declared a difficulty. Items with more problems are at the top, so the
-figure shows at once which items fail and which participants concentrate
-the problems or only echoed the items.
+by the code of one stage (A, P, D, E; see \code{\link[=rp_scheme]{rp_scheme()}}). In the
+comprehension stage a black dot marks that the participant also declared a
+difficulty. Items with more problems are at the top, so the figure shows at
+once which items fail and which participants concentrate the problems or
+gave answers that cannot be assessed.
 }
 \examples{
 ci <- rp_code(rp_example, rp_example_coding)
 rp_plot_map(ci)
+rp_plot_map(ci, stage = "judgment")
 }

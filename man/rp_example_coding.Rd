@@ -3,10 +3,12 @@
 \docType{data}
 \name{rp_example_coding}
 \alias{rp_example_coding}
-\title{Coding of the example paraphrases (simulated)}
+\title{Coding of the example answers (simulated)}
 \format{
-A data frame with the columns \code{participant}, \code{n}, \code{code}
-(\code{P}, \code{D} or \code{E}), \code{note} and \code{stage}.
+A data frame with the columns \code{participant}, \code{n}, \code{code} and
+\code{note} (comprehension), \code{code_retrieval} and \code{note_retrieval},
+\code{code_judgment} and \code{note_judgment}. Codes are \code{P}, \code{D}, \code{E} or empty;
+see \code{\link[=rp_scheme]{rp_scheme()}} for their meaning in each stage.
 }
 \source{
 Simulated with \code{data-raw/rp_example.R}.
@@ -15,8 +17,8 @@ Simulated with \code{data-raw/rp_example.R}.
 rp_example_coding
 }
 \description{
-Codes of the paraphrases of \link{rp_example} that are not adequate, as a coder
-would list them; unlisted answers count as adequate with
-\code{rp_code(default = "A")}.
+Codes of the answers of \link{rp_example} that are not adequate in at least one
+stage, as a coder would list them. Empty codes, and answers not listed,
+count as adequate with \code{rp_code(default = "A")}.
 }
 \keyword{datasets}

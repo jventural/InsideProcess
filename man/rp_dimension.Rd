@@ -16,7 +16,8 @@ A data frame with \code{dimension}, \code{items}, \code{answers}, \code{problem}
 the highest problem.
 }
 \description{
-Share of answers with a signal of problem and comprehension index for each
+Share of answers with a signal of problem (in any stage analysed, see
+\code{\link[=rp_metrics]{rp_metrics()}}) and comprehension index for each
 dimension of the test.
 }
 \examples{

@@ -8,18 +8,26 @@
 #' - `"participants"`: profile, items not fully clear and minutes of each participant.
 #' - `"clarity"`: frequency of each clarity answer.
 #' - `"confusing"`: confusing words or parts written by participants.
-#' - `"codes"`: frequency of each paraphrase code.
+#' - `"codes"`: frequency of each code of a stage (`stage`), with its meaning.
 #' - `"decision"`: signals by source (clarity, `P`, `D`, `E`) and decision per item.
-#' - `"metrics"`: IC, IP with its Wilson interval, severity, discordance and decision.
+#' - `"metrics"`: IC, IP with its Wilson interval, severity, discordance and
+#'   decision; when more than one stage is analysed, also the share with a
+#'   problem in each stage and the main stage.
 #' - `"sensitivity"`: decision with everybody and without `exclude`.
 #' - `"quality"`: length, time and echoes of each participant.
 #' - `"dimension"`: problems and comprehension by dimension.
-#' - `"stages"`: problems by stage of the response process.
+#' - `"stages"`: answers with a problem in each stage of the response process,
+#'   with the Wilson interval.
+#' - `"options"`: use of the answer options of the test in each item (see
+#'   [rp_options()]).
 #' - `"matrix"`: one row per item with decision, main problems and, if given,
 #'   the proposed wording (`proposals`). It suits the supplementary material.
 #'
 #' @param data Answers read with [rp_read()] and coded with [rp_code()].
 #' @param type Table to build (see Details).
+#' @param stage For `"codes"`: `"comprehension"`, `"retrieval"` or
+#'   `"judgment"`.
+#' @param levels For `"options"`: the answer options in order.
 #' @param exclude Participants to leave out in `"sensitivity"`.
 #' @param proposals For `"matrix"`: data frame with `item_code`, `proposal`
 #'   and, optionally, `reason` (Spanish `propuesta` and `razon` are accepted).
@@ -36,10 +44,14 @@
 #' ci <- rp_code(rp_example, rp_example_coding)
 #' rp_table(ci, "metrics")
 #' rp_table(ci, "clarity")
+#' rp_table(ci, "stages")
+#' rp_table(ci, "codes", stage = "judgment")
 rp_table <- function(data, type = c("metrics", "decision", "participants", "clarity", "confusing", "codes",
-                                    "sensitivity", "quality", "dimension", "stages", "matrix"),
+                                    "sensitivity", "quality", "dimension", "stages", "options", "matrix"),
+                     stage = c("comprehension", "retrieval", "judgment"), levels = NULL,
                      exclude = NULL, proposals = NULL, gt = FALSE, digits = 2, lang = NULL, ...) {
   type <- match.arg(type)
+  stage <- match.arg(stage)
   lang <- rp_lang(lang)
   es <- lang == "es"
   L <- function(s, e) if (es) s else e
@@ -58,6 +70,13 @@ rp_table <- function(data, type = c("metrics", "decision", "participants", "clar
       names(x) <- c(L("\u00CDtem", "Item"), L("Dimensi\u00F3n", "Dimension"), L("IC", "CI"), L("IP", "PI"),
                     L("IC 95 % del IP", "95% CI of PI"), L("Severidad", "Severity"), L("Discordancia", "Discordance"),
                     L("Decisi\u00F3n", "Decision"))
+      if (length(s$stages) > 1) {
+        lab <- rp_stage_labels(lang)
+        for (k in s$stages) x[[paste(L("IP", "PI"), tolower(lab[[k]]))]] <- r(m[[paste0("problem_", k)]])
+        x[[L("Etapa principal", "Main stage")]] <- m$main_stage
+        note <- paste(note, L("IP por etapa: participantes con problema en esa etapa / participantes.",
+                              "PI by stage: participants with a problem in that stage / participants."))
+      }
       x
     },
     decision = {
@@ -98,11 +117,14 @@ rp_table <- function(data, type = c("metrics", "decision", "participants", "clar
       x
     },
     codes = {
-      if (!rp_has_code(d)) stop("No coding: add it with rp_code().", call. = FALSE)
-      lab <- rp_code_labels(lang)
-      tb <- table(factor(d$code, levels = names(lab)))
+      cc <- rp_stage_cols[[stage]]
+      if (!cc %in% names(d) || all(is.na(d[[cc]]))) stop("No `", cc, "` coding: add it with rp_code().", call. = FALSE)
+      sch <- rp_scheme(lang)$codes
+      lab <- stats::setNames(sch[[stage]], sch$code)
+      tb <- table(factor(d[[cc]], levels = names(lab)))
       x <- data.frame(names(lab), unname(lab), as.integer(tb), r(100 * as.integer(tb) / sum(tb)))
       names(x) <- c(L("C\u00F3digo", "Code"), L("Significado", "Meaning"), L("Frecuencia", "Frequency"), "%")
+      note <- paste0(L("Etapa: ", "Stage: "), tolower(rp_stage_labels(lang)[[stage]]), ".")
       x
     },
     sensitivity = {
@@ -130,26 +152,43 @@ rp_table <- function(data, type = c("metrics", "decision", "participants", "clar
       x
     },
     stages = {
-      x <- rp_stages(data)
-      names(x)[names(x) == "stage"] <- L("Etapa", "Stage")
-      names(x)[names(x) == "problem_type"] <- L("Tipo de problema", "Problem type")
-      names(x)[names(x) == "problems"] <- L("Problemas", "Problems")
+      g <- rp_stages(data, exclude = exclude, lang = lang)
+      x <- data.frame(g$stage, g$assessable, g$problems, r(100 * g$proportion),
+                      sprintf(paste0("[%.", digits, "f, %.", digits, "f]"), g$lower, g$upper))
+      names(x) <- c(L("Etapa", "Stage"), L("Respuestas evaluables", "Assessable answers"), L("Con problema", "With a problem"),
+                    "%", L("IC 95 %", "95% CI"))
+      note <- L("Comprensi\u00F3n: dificultad declarada o parafraseo P o D. Recuperaci\u00F3n y juicio: c\u00F3digos P o D. Respuesta: alguna dificultad para elegir una opci\u00F3n. Los c\u00F3digos E no son evaluables. IC 95 %: intervalo de Wilson de la proporci\u00F3n.",
+                "Comprehension: declared difficulty or paraphrase P or D. Retrieval and judgment: codes P or D. Response: some difficulty to choose an option. E codes are not assessable. 95% CI: Wilson interval of the proportion.")
+      x
+    },
+    options = {
+      o <- rp_options(data, levels = levels, exclude = exclude)
+      x <- o[, setdiff(names(o), c("n", "mode_share", "concentrated", "mode")), drop = FALSE]
+      x[[L("Opci\u00F3n m\u00E1s elegida (%)", "Most chosen option (%)")]] <- ifelse(is.na(o$mode), "", sprintf("%s (%.0f)", o$mode, 100 * o$mode_share))
+      names(x)[names(x) == "item_code"] <- L("\u00CDtem", "Item")
+      names(x)[names(x) == "answers"] <- L("Respuestas", "Answers")
+      names(x)[names(x) == "unused"] <- L("Opciones sin uso", "Unused options")
+      note <- L("Recuento de participantes que eligieron cada opci\u00F3n al responder la frase en la entrevista.",
+                "Number of participants who chose each option when answering the item in the interview.")
       x
     },
     matrix = {
       m <- rp_metrics(data, lang = lang, ...)
       m <- m[order(m$n), , drop = FALSE]
+      sig <- rp_signal(d, attr(m, "settings")$stages)
       main <- vapply(m$n, function(k) {
-        y <- d[d$n == k & rp_signal(d), , drop = FALSE]
+        y <- d[d$n == k & sig, , drop = FALSE]
         if (!nrow(y)) return("")
         txt <- if ("note" %in% names(y)) y$note else rep(NA, nrow(y))
         if ("confusing" %in% names(y)) txt <- ifelse(is.na(txt) | txt == "", y$confusing, txt)
+        for (v in intersect(c("note_retrieval", "note_judgment"), names(y))) txt <- c(txt, y[[v]])
         txt <- unique(stats::na.omit(txt[txt != ""]))
         paste(utils::head(txt, 3), collapse = "; ")
       }, character(1))
       x <- data.frame(m$item_code, m$dimension, m$item, r(m$comprehension), r(m$problem), as.character(m$decision), main)
       names(x) <- c(L("\u00CDtem", "Item"), L("Dimensi\u00F3n", "Dimension"), L("Frase original", "Original sentence"),
                     L("IC", "CI"), L("IP", "PI"), L("Decisi\u00F3n", "Decision"), L("Problemas observados", "Observed problems"))
+      if (length(attr(m, "settings")$stages) > 1) x <- cbind(x[, 1:6], stats::setNames(data.frame(m$main_stage), L("Etapa principal", "Main stage")), x[, 7, drop = FALSE])
       if (!is.null(proposals)) {
         pr <- rp_standardize(as.data.frame(proposals))
         names(pr)[names(pr) %in% c("propuesta")] <- "proposal"

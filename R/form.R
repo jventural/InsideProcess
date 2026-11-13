@@ -165,7 +165,7 @@ rp_form_config <- function(items, probes, answer_options, response_options, prof
     stop("The `answer` probe needs `answer_options` (the response scale of the test).", call. = FALSE)
   }
   if ("response" %in% probes && is.null(response_options)) {
-    response_options <- if (lang == "es") c("No, fue f\u00E1cil", "Un poco", "S\u00ED, me cost\u00F3") else c("No, it was easy", "A little", "Yes, it was hard")
+    response_options <- rp_response_options(lang)
   }
   key_items <- rp_items_key(items)
   if (!"item" %in% names(key_items)) stop("`items` needs a column with the item text (`item`).", call. = FALSE)

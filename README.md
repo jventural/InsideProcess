@@ -35,7 +35,22 @@ por etapa del modelo de Tourangeau et al. (2000).
 
 Con las sondas por defecto (las de comprensión) la evidencia cubre **solo la
 primera etapa**. Para hablar de procesos de respuesta en sentido amplio, sume
-`retrieval`, `answer` y `judgment`, y codifique la etapa de cada problema.
+`retrieval`, `answer`, `judgment` y `response`.
+
+### Codificación por etapa
+
+Las respuestas abiertas de cada etapa se codifican con las mismas cuatro
+letras, cada una con su sentido en esa etapa (`rp_scheme()`):
+
+| Código | Comprensión (`code`) | Recuperación (`code_retrieval`) | Juicio (`code_judgment`) |
+|---|---|---|---|
+| A | Capta la idea | Recuerdo pertinente al constructo | La razón sostiene la respuesta |
+| P | Parcial o desplaza el foco | Recuerdo vago o genérico | Otro criterio (deseabilidad, norma, caso hipotético) |
+| D | Otro significado | Otro ámbito u otro constructo | La razón contradice la respuesta |
+| E | Eco (repite la frase) | Nada evaluable | Nada evaluable |
+
+La etapa de respuesta no se codifica: sale de la sonda cerrada `response`
+("¿te costó elegir una opción?") y del uso de las opciones (`rp_options()`).
 
 ## Funciones
 
@@ -45,15 +60,16 @@ primera etapa**. Para hablar de procesos de respuesta en sentido amplio, sume
 | Publicarlo con Google (hoja de respuestas) | `rp_apps_script()` |
 | Crear un Google Form nativo | `rp_google_form()` |
 | Leer las respuestas | `rp_read()`, `rp_read_google_form()` |
-| Codificar parafraseos (A, P, D, E) | `rp_coding_template()`, `rp_code()`, `rp_scheme()` |
-| Acuerdo entre codificadores | `rp_agreement()` (kappa y AC1) |
+| Codificar respuestas abiertas (A, P, D, E) | `rp_coding_template()`, `rp_code()`, `rp_scheme()` |
+| Acuerdo entre codificadores, por etapa | `rp_agreement()` (kappa y AC1) |
 | Métricas y decisión por frase | `rp_metrics()`, `rp_wilson()` |
 | Resumen para redactar | `rp_summary()` |
 | Sensibilidad sin participantes dudosos | `rp_sensitivity()`, `rp_quality()` |
 | Por dimensión y por etapa | `rp_dimension()`, `rp_stages()` |
+| Uso de las opciones de respuesta | `rp_options()` |
 | Lecturas detrás de cada problema | `rp_readings()` |
 | Tablas | `rp_table()` (`gt = TRUE` para tabla con colores), `rp_word()` |
-| Figuras | `rp_plot_clarity()`, `rp_plot_map()`, `rp_plot_dimension()`, `rp_plot_problem()` |
+| Figuras | `rp_plot_clarity()`, `rp_plot_map()`, `rp_plot_dimension()`, `rp_plot_problem()`, `rp_plot_stages()` |
 
 ## Ejemplo
 
@@ -74,17 +90,29 @@ rp_summary(ec)
 rp_table(ec, "metrics", gt = TRUE)
 rp_plot_problem(m)
 rp_sensitivity(ec, exclude = c("P2", "P6"))
+
+# 4. Si se preguntaron recuerdo, respuesta, razón y dificultad
+rp_stages(ec)                                    # problemas por etapa con IC de Wilson
+rp_plot_stages(m)                                # dónde falla cada frase
+rp_options(ec, levels = c("Nunca", "A veces", "Casi siempre", "Siempre"))
+rp_agreement("codificador1.csv", "codificador2.csv", stage = "judgment")
 ```
+
+Con solo sondas de comprensión, `rp_metrics(ec, stages = "comprehension")`
+y `rp_metrics(ec)` dan lo mismo.
 
 ## Métricas
 
 | Métrica | Qué mide | Cómo se calcula |
 |---|---|---|
 | IC, índice de comprensión | Proporción que entendió la frase como se quiso | Parafraseos A / parafraseos evaluables (sin ecos) |
-| IP, índice de problema | Proporción con alguna señal | Participantes con señal / participantes |
+| IP, índice de problema | Proporción con alguna señal en cualquier etapa | Participantes con señal / participantes |
 | IC 95 % del IP | Cuánto podría variar el IP en otra muestra | Intervalo de Wilson |
-| Severidad | Gravedad de los problemas (0 a 2) | Mayor de: D = 2, P = 1, "no se entiende" = 2, "más o menos" = 1 |
+| Severidad | Gravedad de los problemas (0 a 2) | Mayor peso entre etapas: D = 2, P = 1, "no se entiende" o "sí, me costó" = 2, "más o menos" o "un poco" = 1 |
 | Discordancia | Dijeron entender y no entendieron | "Sí, se entiende" con parafraseo P o D |
+| IP por etapa | Dónde está el problema | Participantes con señal en esa etapa / participantes |
+| Índices de recuperación y de juicio | Recuerdos y razones adecuados | Códigos A / códigos evaluables de la etapa |
+| Etapa principal | Qué cambiar en la frase | Etapa con el mayor IP |
 | Decisión | Mantener, revisar o reformular | IP ≥ .50 reformular; IP ≥ .30 revisar |
 
 ## Referencias

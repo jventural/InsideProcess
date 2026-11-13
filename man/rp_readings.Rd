@@ -16,12 +16,17 @@ decision is not "keep".}
 }
 \value{
 A data frame with \code{item_code}, \code{item}, \code{participant}, \code{clarity},
-\code{code}, \code{paraphrase}, \code{note} and \code{confusing}, one row per signal.
+\code{code}, \code{paraphrase}, \code{note}, \code{confusing} and, when present,
+\code{code_retrieval}, \code{retrieval}, \code{note_retrieval}, \code{answer},
+\code{code_judgment}, \code{judgment}, \code{note_judgment} and \code{response}, one row per
+participant with a signal.
 }
 \description{
 Lists, for the chosen items, what each participant with a signal said: the
 code and note of the paraphrase, or the clarity marked and the confusing
-part. It is the qualitative material needed to rewrite an item.
+part and, when those probes were asked, what came to mind, the answer
+chosen, the reason and the difficulty to choose, with their codes. It is
+the qualitative material needed to rewrite an item.
 }
 \examples{
 ci <- rp_code(rp_example, rp_example_coding)
