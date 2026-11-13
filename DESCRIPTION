@@ -1,0 +1,48 @@
+Package: InsideProcess
+Type: Package
+Title: Validity Evidence Based on Response Processes from Cognitive Interviews
+Version: 0.1.0
+Authors@R: person("Jose", "Ventura-Leon",
+                   email = "jventuraleon@gmail.com",
+                   role = c("aut", "cre"),
+                   comment = c(ORCID = "0000-0003-2996-4244"))
+Description: Gathers and quantifies validity evidence based on response
+    processes (Padilla and Benitez, 2014 <doi:10.7334/psicothema2013.259>)
+    through self-administered cognitive interviews (web probing). It writes a
+    ready-to-use web form, either as a 'Google Apps Script' web application
+    that stores every answer and the seconds spent on each item in a 'Google
+    Sheets' spreadsheet, or as a script that builds a native 'Google Forms'
+    questionnaire. Probes follow the four stages of the survey response model
+    of Tourangeau, Rips and Rasinski (2000) <doi:10.1017/CBO9780511819322>:
+    comprehension (clarity rating, paraphrase, confusing words), retrieval,
+    judgment and response. Paraphrases coded as adequate, partial, different
+    meaning or echo are turned into item-level metrics: comprehension index,
+    problem index with a Wilson (1927) <doi:10.1080/01621459.1927.10502953>
+    interval, severity, discordance between declared and shown understanding,
+    and a keep, revise or reformulate decision. Intercoder agreement is given
+    with Cohen's kappa and the AC1 coefficient of Gwet (2008)
+    <doi:10.1348/000711006X126600>, together with sensitivity analyses without
+    doubtful participants, response quality per participant, tables and
+    figures. Functions are standalone: there is no pipeline to follow.
+License: GPL (>= 3)
+URL: https://github.com/jventural/InsideProcess
+BugReports: https://github.com/jventural/InsideProcess/issues
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Depends:
+    R (>= 4.1)
+Imports:
+    ggplot2,
+    jsonlite,
+    stats,
+    tools,
+    utils
+Suggests:
+    flextable,
+    gt,
+    officer,
+    readxl,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3

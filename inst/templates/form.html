@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="__LANG__">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__</title>
+<style>
+  :root {
+    --fondo: #f6f4ef; --tarjeta: #ffffff; --tinta: #1f2a2e; --suave: #5d6b70;
+    --acento: __ACCENT__; --acento-claro: #e3efeb; --borde: #d9d6cc; --alerta: #b4532a;
+    --sombra: 0 10px 30px rgba(31, 42, 46, .08);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--fondo); color: var(--tinta);
+    font-family: "Source Sans 3", "Segoe UI", system-ui, sans-serif; font-size: 17px; line-height: 1.5; }
+  .barra { position: fixed; top: 0; left: 0; right: 0; height: 5px; background: var(--borde); z-index: 5; }
+  .barra > div { height: 100%; width: 0; background: var(--acento); transition: width .4s ease; }
+  main { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 40px 16px; }
+  .pantalla { width: 100%; max-width: 680px; animation: entra .35s ease; }
+  @keyframes entra { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  .tarjeta { background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 14px;
+    padding: 28px 26px; box-shadow: var(--sombra); }
+  h1 { font-family: Georgia, "Source Serif 4", serif; font-weight: 600; font-size: 1.7rem; line-height: 1.25; margin: 0 0 14px; }
+  p { margin: 0 0 12px; }
+  .contador { color: var(--suave); font-size: .9rem; font-weight: 600; letter-spacing: .03em; margin-bottom: 10px; }
+  .item { font-family: Georgia, "Source Serif 4", serif; font-size: 1.55rem; line-height: 1.35; font-weight: 500;
+    text-align: center; background: var(--acento-claro); border-left: 5px solid var(--acento);
+    border-radius: 10px; padding: 26px 22px; margin: 0 0 6px; }
+  .sonda { margin-top: 24px; }
+  .sonda label.titulo { display: block; font-weight: 700; margin-bottom: 10px; }
+  .opciones { display: flex; flex-wrap: wrap; gap: 10px; }
+  .opcion { flex: 1 1 150px; border: 1.5px solid var(--borde); background: #fff; color: var(--tinta);
+    border-radius: 10px; padding: 12px 14px; font: inherit; cursor: pointer; text-align: center; transition: all .15s; }
+  .opcion:hover { border-color: var(--acento); }
+  .opcion.elegida { border-color: var(--acento); background: var(--acento); color: #fff; font-weight: 600; }
+  textarea, input[type=text], input[type=number], select { width: 100%; font: inherit; color: var(--tinta);
+    border: 1.5px solid var(--borde); border-radius: 10px; padding: 11px 13px; background: #fff; }
+  textarea { min-height: 92px; resize: vertical; }
+  textarea:focus, input:focus, select:focus { outline: none; border-color: var(--acento); box-shadow: 0 0 0 3px var(--acento-claro); }
+  .ayuda { color: var(--suave); font-size: .9rem; margin-top: 6px; }
+  .aviso { color: var(--alerta); font-size: .92rem; margin-top: 10px; min-height: 1.3em; }
+  .acciones { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 24px; }
+  button.principal { background: var(--acento); color: #fff; border: 0; border-radius: 10px; padding: 13px 26px;
+    font: inherit; font-weight: 700; cursor: pointer; }
+  button.principal:disabled { opacity: .45; cursor: not-allowed; }
+  button.secundario { background: none; border: 0; color: var(--suave); font: inherit; cursor: pointer; padding: 10px 4px; }
+  .campo { margin-bottom: 16px; flex: 1 1 180px; }
+  .campo label { display: block; font-weight: 600; margin-bottom: 6px; }
+  .fila { display: flex; gap: 14px; flex-wrap: wrap; }
+  .ejemplo { border: 1px dashed var(--borde); border-radius: 10px; padding: 14px 16px; margin: 12px 0; background: #fbfaf7; }
+  .ejemplo b { color: var(--acento); }
+  .check { display: flex; gap: 10px; align-items: flex-start; margin-top: 16px; }
+  .check input { width: 20px; height: 20px; margin-top: 3px; accent-color: var(--acento); }
+  .motivo { background: #fbefe8; border-left: 4px solid var(--alerta); border-radius: 8px;
+    padding: 10px 14px; margin-bottom: 12px; font-size: .95rem; }
+  .oculto { display: none; }
+  @media (max-width: 520px) {
+    .tarjeta { padding: 22px 16px; } h1 { font-size: 1.4rem; } .item { font-size: 1.25rem; padding: 20px 14px; }
+    .opcion { flex-basis: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="barra"><div id="progreso"></div></div>
+<main><div id="app"></div></main>
+
+<script>
+// Written by rp_form() of the R package InsideProcess. Everything the form needs is in CFG.
+const CFG = /*__CONFIG__*/{};
+const T = CFG.t, ITEMS = CFG.items, F = CFG.fields, CLAR = CFG.clarity_options;
+const has = p => CFG.probes.indexOf(p) >= 0;
+
+let E = cargar() || nuevo();
+let t0 = Date.now();
+
+function nuevo() { return { id: nuevoId(), inicio: new Date().toISOString(), paso: "bienvenida", i: 0, perfil: {}, resp: {}, comentario: "" }; }
+function nuevoId() { return "P" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase(); }
+function guardarLocal() { try { localStorage.setItem(CFG.key, JSON.stringify(E)); } catch (e) {} }
+function cargar() { try { return JSON.parse(localStorage.getItem(CFG.key)); } catch (e) { return null; } }
+function esc(s) { return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function palabras(s) { return (s || "").trim().split(/\s+/).filter(Boolean).length; }
+const $ = id => document.getElementById(id);
+
+function avance() {
+  const total = ITEMS.length + 3;
+  const pos = { bienvenida: 0, datos: 1, ejemplo: 2, item: 3 + E.i, cierre: total, fin: total }[E.paso];
+  $("progreso").style.width = (100 * pos / total) + "%";
+}
+
+function pintar() {
+  avance(); guardarLocal(); window.scrollTo(0, 0); t0 = Date.now();
+  ({ bienvenida, datos, ejemplo, item, cierre, fin })[E.paso]();
+}
+
+function bienvenida() {
+  $("app").innerHTML = `<section class="pantalla tarjeta">
+    <h1>${T.welcome_title}</h1>${T.welcome_html}
+    <label class="check"><input type="checkbox" id="acepto"><span>${T.consent}</span></label>
+    <div class="acciones"><span></span><button class="principal" id="ir" disabled>${T.start}</button></div>
+  </section>`;
+  $("acepto").checked = !!E.consentimiento;
+  $("ir").disabled = !E.consentimiento;
+  $("acepto").onchange = e => { E.consentimiento = e.target.checked; $("ir").disabled = !e.target.checked; };
+  $("ir").onclick = () => { E.paso = CFG.profile.length ? "datos" : (CFG.example ? "ejemplo" : "item"); pintar(); };
+}
+
+function campo(c) {
+  const v = E.perfil[c.id] ?? "";
+  let input;
+  if (c.type === "select") {
+    input = `<select id="f_${c.id}">${[""].concat(c.options).map(o => `<option ${v === o ? "selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
+  } else if (c.type === "number") {
+    input = `<input type="number" id="f_${c.id}" ${c.min != null ? `min="${c.min}"` : ""} ${c.max != null ? `max="${c.max}"` : ""} value="${esc(v)}">`;
+  } else {
+    input = `<input type="text" id="f_${c.id}" value="${esc(v)}">`;
+  }
+  return `<div class="campo"><label for="f_${c.id}">${esc(c.label)}</label>${input}</div>`;
+}
+
+function datos() {
+  $("app").innerHTML = `<section class="pantalla tarjeta">
+    <h1>${T.profile_title}</h1>
+    <div class="fila">${CFG.profile.map(campo).join("")}</div>
+    <div class="aviso" id="aviso"></div>
+    <div class="acciones"><button class="secundario" id="atras">${T.back}</button><button class="principal" id="ir">${T.next_label}</button></div>
+  </section>`;
+  $("atras").onclick = () => { E.paso = "bienvenida"; pintar(); };
+  $("ir").onclick = () => {
+    const v = {};
+    CFG.profile.forEach(c => { v[c.id] = $("f_" + c.id).value.trim(); });
+    if (CFG.profile.some(c => !v[c.id])) { $("aviso").textContent = T.profile_missing; return; }
+    E.perfil = v; E.paso = CFG.example ? "ejemplo" : "item"; pintar();
+  };
+}
+
+function ejemplo() {
+  const x = CFG.example;
+  $("app").innerHTML = `<section class="pantalla tarjeta">
+    <h1>${T.example_title}</h1>
+    <p>${T.example_intro}</p>
+    <div class="ejemplo">
+      <p><b>${T.example_item}</b> "${esc(x.item)}"</p>
+      ${has("clarity") ? `<p><b>${T.q_clarity}</b> ${esc(CLAR[0])}.</p>` : ""}
+      ${has("paraphrase") ? `<p style="margin:0"><b>${T.q_paraphrase}</b> "${esc(x.paraphrase)}"</p>` : ""}
+    </div>
+    ${has("confusing") ? `<p>${T.example_confusing}</p>` : ""}
+    <p>${T.example_own_words}</p>
+    <div class="acciones"><button class="secundario" id="atras">${T.back}</button><button class="principal" id="ir">${T.go_items}</button></div>
+  </section>`;
+  $("atras").onclick = () => { E.paso = CFG.profile.length ? "datos" : "bienvenida"; pintar(); };
+  $("ir").onclick = () => { E.paso = "item"; pintar(); };
+}
+
+function motivo(cl) {
+  if (cl === CLAR[1]) return T.reason_partly;
+  if (cl === CLAR[2]) return T.reason_not;
+  return "";
+}
+
+function opciones(id, valores, elegido) {
+  return `<div class="opciones" id="${id}">${valores.map(o => `<button class="opcion ${elegido === o ? "elegida" : ""}" data-v="${esc(o)}">${esc(o)}</button>`).join("")}</div>`;
+}
+
+function item() {
+  const it = ITEMS[E.i];
+  const r = E.resp[it.n] || (E.resp[it.n] = { clarity: "", paraphrase: "", confusing: "", retrieval: "", answer: "", judgment: "", response: "", seconds: 0 });
+  let k = 0, html = "";
+  const num = () => (++k) + ". ";
+  if (has("clarity")) html += `<div class="sonda"><label class="titulo">${num()}${T.q_clarity}</label>${opciones("op_clarity", CLAR, r.clarity)}</div>`;
+  if (has("paraphrase")) html += `<div class="sonda"><label class="titulo" for="paraphrase">${num()}${T.q_paraphrase}</label>
+      <textarea id="paraphrase" placeholder="${esc(T.ph_paraphrase)}">${esc(r.paraphrase)}</textarea></div>`;
+  if (has("confusing")) {
+    const ver = !has("clarity") || (r.clarity && r.clarity !== CLAR[0]);
+    html += `<div class="sonda ${ver ? "" : "oculto"}" id="bloque-confuso">
+      ${has("clarity") ? `<div class="motivo" id="motivo">${motivo(r.clarity)}</div>` : ""}
+      <label class="titulo" for="confusing">${num()}${T.q_confusing}</label>
+      <textarea id="confusing" placeholder="${esc(T.ph_confusing)}">${esc(r.confusing)}</textarea></div>`;
+  }
+  if (has("retrieval")) html += `<div class="sonda"><label class="titulo" for="retrieval">${num()}${T.q_retrieval}</label>
+      <textarea id="retrieval" placeholder="${esc(T.ph_retrieval)}">${esc(r.retrieval)}</textarea></div>`;
+  if (has("answer")) html += `<div class="sonda"><label class="titulo">${num()}${T.q_answer}</label>${opciones("op_answer", CFG.answer_options, r.answer)}</div>`;
+  if (has("judgment")) html += `<div class="sonda"><label class="titulo" for="judgment">${num()}${T.q_judgment}</label>
+      <textarea id="judgment" placeholder="${esc(T.ph_judgment)}">${esc(r.judgment)}</textarea></div>`;
+  if (has("response")) html += `<div class="sonda"><label class="titulo">${num()}${T.q_response}</label>${opciones("op_response", CFG.response_options, r.response)}</div>`;
+
+  $("app").innerHTML = `<section class="pantalla tarjeta">
+    <div class="contador">${T.counter.replace("{i}", E.i + 1).replace("{n}", ITEMS.length)}</div>
+    <div class="item">"${esc(it.item)}"</div>${html}
+    <div class="aviso" id="aviso"></div>
+    <div class="acciones"><button class="secundario" id="atras">${T.back}</button><button class="principal" id="ir">${E.i + 1 < ITEMS.length ? T.next_label : T.finish}</button></div>
+  </section>`;
+
+  const enlazar = (id, campo, despues) => {
+    const cont = $(id); if (!cont) return;
+    cont.querySelectorAll(".opcion").forEach(b => b.onclick = () => {
+      r[campo] = b.dataset.v;
+      cont.querySelectorAll(".opcion").forEach(x => x.classList.toggle("elegida", x === b));
+      if (despues) despues();
+      guardarLocal();
+    });
+  };
+  enlazar("op_clarity", "clarity", () => {
+    if (!has("confusing")) return;
+    $("bloque-confuso").classList.toggle("oculto", r.clarity === CLAR[0]);
+    $("motivo").innerHTML = motivo(r.clarity);
+  });
+  enlazar("op_answer", "answer");
+  enlazar("op_response", "response");
+  ["paraphrase", "confusing", "retrieval", "judgment"].forEach(c => { if ($(c)) $(c).oninput = e => { r[c] = e.target.value; guardarLocal(); }; });
+
+  const salir = paso => { r.seconds += Math.round((Date.now() - t0) / 1000); paso(); pintar(); };
+  $("atras").onclick = () => salir(() => { if (E.i > 0) E.i--; else E.paso = CFG.example ? "ejemplo" : (CFG.profile.length ? "datos" : "bienvenida"); });
+  $("ir").onclick = () => {
+    const avisa = m => { $("aviso").textContent = m; };
+    if (has("clarity") && !r.clarity) return avisa(T.need_clarity);
+    if (has("paraphrase") && palabras(r.paraphrase) < CFG.min_words) return avisa(T.need_paraphrase);
+    if (has("confusing") && has("clarity") && r.clarity !== CLAR[0] && !r.confusing.trim()) return avisa(T.need_confusing);
+    if (has("retrieval") && palabras(r.retrieval) < CFG.min_words) return avisa(T.need_text);
+    if (has("answer") && !r.answer) return avisa(T.need_choice);
+    if (has("judgment") && palabras(r.judgment) < CFG.min_words) return avisa(T.need_text);
+    if (has("response") && !r.response) return avisa(T.need_choice);
+    if (has("clarity") && r.clarity === CLAR[0]) r.confusing = "";
+    salir(() => { if (E.i + 1 < ITEMS.length) E.i++; else E.paso = "cierre"; });
+  };
+}
+
+function cierre() {
+  $("app").innerHTML = `<section class="pantalla tarjeta">
+    <h1>${T.close_title}</h1>
+    <p>${T.close_comment}</p>
+    <textarea id="comentario" placeholder="${esc(T.ph_comment)}">${esc(E.comentario)}</textarea>
+    <div class="aviso" id="aviso"></div>
+    <div class="acciones"><button class="secundario" id="atras">${T.back_last}</button><button class="principal" id="ir">${T.send}</button></div>
+  </section>`;
+  $("comentario").oninput = e => { E.comentario = e.target.value; guardarLocal(); };
+  $("atras").onclick = () => { E.paso = "item"; E.i = ITEMS.length - 1; pintar(); };
+  $("ir").onclick = enviar;
+}
+
+// One object per item with the column names of the sheet (CFG.fields).
+function carga() {
+  const respuestas = ITEMS.map(it => {
+    const r = E.resp[it.n] || {}, o = { n: it.n, item: it.item };
+    CFG.probes.forEach(p => { o[F[p]] = r[p] ?? ""; });
+    o[F.seconds] = r.seconds || 0;
+    return o;
+  });
+  return { id: E.id, inicio: E.inicio, fin: new Date().toISOString(), perfil: E.perfil, comentario: E.comentario, respuestas };
+}
+
+function enviar() {
+  const b = $("ir"); b.disabled = true; b.textContent = T.sending;
+  const d = carga();
+  const ok = () => { E.paso = "fin"; E.enviado = true; pintar(); };
+  const falla = err => {
+    b.disabled = false; b.textContent = T.retry;
+    $("aviso").innerHTML = `${T.send_failed} (${esc(err && err.message || err)}).
+      <br><button class="secundario" id="bajar">${T.download}</button>`;
+    $("bajar").onclick = () => descargar(d);
+  };
+  if (window.google && google.script && google.script.run) {
+    google.script.run.withSuccessHandler(ok).withFailureHandler(falla).guardar(d);
+  } else {
+    descargar(d); ok();   // outside Google (local test or offline use): the answers are downloaded as a csv
+  }
+}
+
+function descargar(d) {
+  const campos = CFG.probes.map(p => F[p]).concat([F.seconds]);
+  const perfil = CFG.profile.map(c => c.id);
+  const filas = [["id", "inicio", "fin"].concat(perfil, ["n", "item"], campos, [CFG.comment_field])];
+  d.respuestas.forEach(r => filas.push([d.id, d.inicio, d.fin].concat(perfil.map(k => d.perfil[k]), [r.n, r.item], campos.map(k => r[k]), [d.comentario])));
+  const csv = "﻿" + filas.map(f => f.map(v => '"' + String(v ?? "").replace(/"/g, '""') + '"').join(";")).join("\r\n") + "\r\n";
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  a.download = CFG.file_prefix + d.id + ".csv"; a.click();
+}
+
+function fin() {
+  $("app").innerHTML = `<section class="pantalla tarjeta" style="text-align:center">
+    <h1>${T.thanks_title}</h1>
+    <p>${T.thanks_text}</p>
+    <p class="ayuda">${T.code_label} ${esc(E.id)}</p>
+    <button class="secundario" id="otra">${T.new_participation}</button>
+  </section>`;
+  $("otra").onclick = () => { try { localStorage.removeItem(CFG.key); } catch (e) {} E = nuevo(); pintar(); };
+}
+
+pintar();
+</script>
+</body>
+</html>

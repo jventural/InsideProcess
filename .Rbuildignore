@@ -1,0 +1,12 @@
+^data-raw$
+^.*\.Rproj$
+^\.Rproj\.user$
+^README\.Rmd$
+^cran-comments\.md$
+^.*\.Rcheck$
+^CRAN-SUBMISSION$
+^\.RData$
+^\.Rhistory$
+^.*\.tar\.gz$
+^\.gitignore$
+^\.git$
